@@ -120,7 +120,42 @@ func GetProxies() ([]map[string]any, error) {
 	close(proxyChan)
 	<-done // 等待收集完成
 
-	return mihomoProxies, nil
+	// 添加过滤逻辑
+	filtered := filterUnwantedProxies(mihomoProxies)
+	return filtered, nil
+}
+
+// 添加新的过滤函数
+func filterUnwantedProxies(proxies []map[string]any) []map[string]any {
+	filtered := make([]map[string]any, 0)
+	
+	for _, proxy := range proxies {
+		// 获取代理类型
+		proxyType, ok := proxy["type"].(string)
+		if !ok {
+			continue
+		}
+		
+		// 过滤掉 ss 和 ssr
+		if proxyType == "ss" || proxyType == "ssr" {
+			continue
+		}
+		
+		// 过滤掉 vless+ws
+		if proxyType == "vless" {
+			// 检查是否是 ws 传输方式
+			network, ok := proxy["network"].(string)
+			if ok && network == "ws" {
+				continue
+			}
+		}
+		
+		// 保留其他节点
+		filtered = append(filtered, proxy)
+	}
+	
+	slog.Info(fmt.Sprintf("过滤前节点数量: %d, 过滤后节点数量: %d", len(proxies), len(filtered)))
+	return filtered
 }
 
 // 订阅链接中获取数据
